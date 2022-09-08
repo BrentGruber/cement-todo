@@ -1,13 +1,35 @@
 
+import os
 from cement import App, TestApp, init_defaults
 from cement.core.exc import CaughtSignal
+from cement.utils import fs
+from tinydb import TinyDB
 from .core.exc import TodoError
 from .controllers.base import Base
+from .controllers.items import Items
+
+
 
 # configuration defaults
 CONFIG = init_defaults('todo')
 CONFIG['todo']['db_file'] = '~/.todo/db.json'
+CONFIG['todo']['email'] = 'me@brentgruber.net'
 CONFIG['todo']['foo'] = 'bar'
+
+def extend_tinydb(app):
+    app.log.info('extending todo application with tinydb')
+    db_file = app.config.get('todo', 'db_file')
+
+    # ensure that we expand the full path
+    db_file = fs.abspath(db_file)
+    app.log.info('tinydb database file is: %s' % db_file)
+
+    # ensure our parent directory exists
+    db_dir = os.path.dirname(db_file)
+    if not os.path.exists(db_dir):
+        os.makedirs(db_dir)
+
+    app.extend('db', TinyDB(db_file))
 
 
 class Todo(App):
@@ -43,7 +65,13 @@ class Todo(App):
 
         # register handlers
         handlers = [
-            Base
+            Base,
+            Items
+        ]
+
+        # register hooks
+        hooks = [
+            ('post_setup', extend_tinydb)
         ]
 
 
